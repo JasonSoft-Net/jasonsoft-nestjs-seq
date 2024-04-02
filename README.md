@@ -129,7 +129,7 @@ export class AppController {
 
 > Seq is a centralized log file with superpowers. Check out the logs we collected
 
-![log rendering](https://github.com/jasonsoft/nestjs-seq/raw/main/rendering.jpg)
+![log rendering](rendering.jpg)
 
 ### Example
 
