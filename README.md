@@ -15,7 +15,7 @@ Seq logging module for Nest framework (node.js) 🐷
 ### Installation
 
 ```bash
-$ npm i --save @jasonsoft/nestjs-seq
+$ npm i --save @jasonsoft/nestjs-seq axios
 ```
 
 ### Quick Start
@@ -130,6 +130,31 @@ export class AppController {
 > Seq is a centralized log file with superpowers. Check out the logs we collected
 
 ![log rendering](https://github.com/jasonsoft/nestjs-seq/raw/main/rendering.jpg)
+
+### Nest System Console Logging to Seq
+
+> This section describes how to integrate Nest system console logging with Seq through a custom console logger. To set up this integration, follow the steps below:
+
+```typescript
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+// Import the `ConsoleSeqLogger` from `@jasonsoft/nestjs-seq`
+import { ConsoleSeqLogger } from '@jasonsoft/nestjs-seq';
+
+async function bootstrap() {
+  // Set `bufferLogs` to `true`. This ensures that all logs will be buffered until the custom logger (`ConsoleSeqLogger`) is attached.
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+  // Extend the built-in logger with `ConsoleSeqLogger`
+  app.useLogger(app.get(ConsoleSeqLogger));
+  // Start your application
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+This setup allows your NestJS application to log directly to Seq, providing a centralized logging solution.
 
 ### Example
 

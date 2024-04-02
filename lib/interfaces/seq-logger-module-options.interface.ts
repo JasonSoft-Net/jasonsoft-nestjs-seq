@@ -1,28 +1,18 @@
 import { FactoryProvider, ModuleMetadata, Type } from '@nestjs/common';
+import { SeqLoggerOptions } from './seq-logger-options.interface';
 
 /**
- * Seq Logger Module Options interface
+ * Seq Logger Module Options
  * Added by Jason.Song (成长的小猪) on 2021/07/05 16:42:59
  */
-export interface SeqLoggerModuleOptions {
-  /**
-   * Customize a log name to facilitate log filtering
-   */
-  serviceName: string;
-  /**
-   * The HTTP endpoint address of the Seq server
-   */
-  serverUrl: string;
-  /**
-   * The API Key to use when connecting to Seq
-   */
-  apiKey: string;
+export interface SeqLoggerModuleOptions extends Partial<SeqLoggerOptions> {
   /**
    * Use module globally
    * When you want to use SeqLoggerModule in other modules,
    * you'll need to import it (as is standard with any Nest module).
    * Alternatively, declare it as a global module by setting the options object's isGlobal property to true, as shown below.
-   * In that case, you will not need to import SeqLoggerModule in other modules once it's been loaded in the root module
+   * In that case, you will not need to import SeqLoggerModule in other modules once it's been loaded in the root module.
+   * Optional, default value is 'true'.
    */
   isGlobal?: boolean;
 }
@@ -59,4 +49,9 @@ export interface SeqLoggerAsyncOptions extends Pick<ModuleMetadata, 'imports'> {
    * Optional list of providers to be injected into the context of the Factory function.
    */
   inject?: FactoryProvider['inject'];
+  /**
+   * If "true', register `SeqLoggerModule` as a global module.
+   * Optional, default value is `true`.
+   */
+  isGlobal?: boolean;
 }
