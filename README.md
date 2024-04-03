@@ -15,10 +15,8 @@ Seq logging module for Nest framework (node.js) 🐷
 ### Installation
 
 ```bash
-$ npm i --save @jasonsoft/nestjs-seq axios
+$ npm i --save @jasonsoft/nestjs-seq
 ```
-
-**Note:** For versions above **`v2.1.0`**, installing the **`axios`** dependency is required. Ensure to have it by running the installation command provided. The version **`v2.1.0`** is a critical update that enhances functionality and performance.
 
 ### Quick Start
 
