@@ -1,16 +1,20 @@
+import * as os from 'os';
 import axios from 'axios';
 import { SeqEvent, SeqLoggerOptions } from '../interfaces';
 import { EventCollection } from '../utils/event-collection.util';
 import { sleep } from '../utils/sleep.util';
 import { NETWORK_ERRORS } from '../seq-logger.constants';
-import { getTimestamp, safeStringify } from '../utils';
+import { logToConsole, safeStringify } from '../utils';
+import { SeqLevel } from '../enums';
 
 /**
  * Core logger class responsible for managing and sending log events to Seq server.
- * Added by Jason.Song (成长的小猪) on 2023/11/18 13:37:56
+ * Added by Jason.Song (成长的小猪) on 2023/11/18
  */
 export class SeqLoggerCore {
   options: SeqLoggerOptions;
+  metaProperties: Record<string, any>;
+  private isInitEvent: boolean = false;
   private events: EventCollection<SeqEvent> = new EventCollection<SeqEvent>();
   private isRunning: boolean = false;
   private timer: NodeJS.Timeout | undefined;
@@ -26,6 +30,12 @@ export class SeqLoggerCore {
    */
   constructor(options: Partial<SeqLoggerOptions>) {
     this.options = this.mergeOptionsWithDefaults(options);
+    this.metaProperties = {
+      hostname: os.hostname(),
+      serviceName: this.options.serviceName,
+      ...this.options.extendMetaProperties,
+      logger: 'seq',
+    };
     this.isRunning = true;
   }
 
@@ -45,6 +55,7 @@ export class SeqLoggerCore {
       maxRetries: 5,
       delay: 5,
       timeout: 30,
+      metaFieldName: 'meta',
     };
     return { ...defaultOptions, ...options };
   }
@@ -79,10 +90,8 @@ export class SeqLoggerCore {
    * Added by Jason.Song (成长的小猪) on 2023/11/18
    */
   private stop() {
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = undefined;
-    }
+    clearTimeout(this.timer);
+    this.timer = undefined;
   }
 
   /**
@@ -91,7 +100,6 @@ export class SeqLoggerCore {
    */
   private async send(): Promise<void> {
     const { batchPayloadLimit, eventBodyLimit } = this.options;
-    let isInitEvent = false;
     let contentLen = this.TAG_LENGTH;
     const contentArray: string[] = [];
     while (this.events.size() > 0) {
@@ -99,14 +107,12 @@ export class SeqLoggerCore {
       if (!event) {
         break;
       }
-      if (event.Properties?.SeqInitEvent) {
-        isInitEvent = true;
-      }
       let jsonStr = safeStringify(event);
       let jsonLen = Buffer.byteLength(jsonStr);
       if (jsonLen > eventBodyLimit) {
-        console.warn(
-          `\x1b[35m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[35mWARN\x1b[39m \x1b[33m[SeqLogger]\x1b[39m Event body is larger than ${eventBodyLimit} bytes: ${jsonLen}`,
+        logToConsole(
+          'warn',
+          `Event body is larger than ${eventBodyLimit} bytes: ${jsonLen}`,
         );
         const correctEvent = this.handleLargeEvent(
           event,
@@ -142,13 +148,21 @@ export class SeqLoggerCore {
             },
             timeout: this.options.timeout * 1000,
           });
-          if (isInitEvent) {
-            console.info(
-              `\x1b[33m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[32mLOG\x1b[39m \x1b[33m[SeqLogger]\x1b[39m \x1b[32mSeq Logger initialized successfully\x1b[39m`,
-            );
+          if (!this.isInitEvent) {
+            this.isInitEvent = true;
+            logToConsole('log', 'Seq logger initialized successfully');
+            this.emit({
+              Timestamp: new Date(),
+              Level: SeqLevel.Information,
+              MessageTemplate: `[{context}] Seq logger initialized successfully`,
+              Properties: {
+                context: 'jasonsoft/nestjs-seq',
+                [this.options.metaFieldName]: this.metaProperties,
+              },
+            });
           }
           break;
-        } catch (error) {
+        } catch (error: any) {
           if (axios.isAxiosError(error)) {
             let data = error.message;
             if (error.response) {
@@ -157,10 +171,9 @@ export class SeqLoggerCore {
                 data = body.Error;
               }
               if (status >= 500 && status <= 599) {
-                console.error(
-                  `\x1b[31m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[31mERROR\x1b[39m \x1b[33m[SeqLogger]\x1b[39m Server error, retrying(${
-                    times + 1
-                  }) in ${this.options.delay} seconds\x1b[39m`,
+                logToConsole(
+                  'error',
+                  `Server error, retrying(${times + 1}) in ${this.options.delay} seconds`,
                 );
                 if (times < this.options.maxRetries - 1) {
                   await sleep(this.options.delay);
@@ -169,25 +182,21 @@ export class SeqLoggerCore {
               }
             }
             if (error.code && NETWORK_ERRORS.includes(error.code)) {
-              console.error(
-                `\x1b[31m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[31mERROR\x1b[39m \x1b[33m[SeqLogger]\x1b[39m Network error, retrying(${
-                  times + 1
-                }) in ${this.options.delay} seconds\x1b[39m`,
+              logToConsole(
+                'error',
+                `Network error, retrying(${times + 1}) in ${this.options.delay} seconds`,
               );
               if (times < this.options.maxRetries - 1) {
                 await sleep(this.options.delay);
                 continue;
               }
             }
-            console.error(
-              `\x1b[31m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[31mERROR\x1b[39m \x1b[33m[SeqLogger]\x1b[39m`,
-              data,
+            logToConsole(
+              'error',
+              `Failed to send log due to: ${data || error.code}`,
             );
           } else {
-            console.error(
-              `\x1b[31m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[31mERROR\x1b[39m \x1b[33m[SeqLogger]\x1b[39m`,
-              error,
-            );
+            logToConsole('error', error.message, error.stack);
           }
           break;
         }
@@ -214,7 +223,7 @@ export class SeqLoggerCore {
     currentBodyLen: number,
     eventBodyLimit: number,
   ): SeqEvent {
-    const partialMessage = event.MessageTemplate?.substring(0, 25);
+    const partialMessage = event.MessageTemplate?.substring(0, 50);
     return {
       Timestamp: event.Timestamp,
       Level: event.Level,
@@ -235,9 +244,7 @@ export class SeqLoggerCore {
    */
   public close() {
     if (!this.isRunning) {
-      console.warn(
-        `\x1b[35m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[35mWARN\x1b[39m \x1b[33m[SeqLogger]\x1b[39m Logger is already closed`,
-      );
+      logToConsole('warn', 'Logger is already closed');
       return;
     }
     this.isRunning = false;

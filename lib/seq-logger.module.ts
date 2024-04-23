@@ -10,21 +10,41 @@ import {
   JASONSOFT_SEQ_LOGGER_OPTIONS,
 } from './seq-logger.constants';
 import { SeqLogger } from './seq-logger.service';
-import { defaultIfNullOrUndefined, getTimestamp } from './utils';
+import { logToConsole, defaultIfNullOrUndefined } from './utils';
 import { SeqLevel } from './enums';
 import { SeqLoggerCore } from './core';
 
 /**
- * JasonSoft Seq logger Module
+ * JasonSoft Seq Logger Module
+ * This module facilitates the integration of Seq as a logging service in NestJS applications,
+ * providing both static and asynchronous configuration options.
+ *
  * Added by Jason.Song (成长的小猪) on 2021/07/05 16:44:10
  */
 @Module({})
 export class SeqLoggerModule {
   /**
-   * Static configuration
-   * Register a globally available configuration for seq logger service.
+   * Registers the Seq Logger service with static configuration options.
+   * This method is ideal for scenarios where configuration settings are immediately available and do not depend on asynchronous resources.
+   *
    * Added by Jason.Song (成长的小猪) on 2021/10/18 17:15:51
-   * @param options Seq logger configuration object
+   *
+   * Example usage:
+   * ```typescript
+    SeqLoggerModule.forRoot({
+      serverUrl: 'http(s)://your-seq-server:5341',
+      apiKey: 'your-api-key',
+      extendMetaProperties: {
+        serviceName: 'your-service-name',
+      },
+    }),
+   * ```
+   *
+   * @param options Configuration options for the Seq Logger service. This includes settings like the Seq server URL, API key, and service name, among others.
+   * 
+   * For additional properties and configuration options, refer to the Seq Logger Options Documentation:
+   * [Seq Logger Options Documentation](https://github.com/jasonsoft/nestjs-seq/blob/v2.x.x/SEQ_LOGGER_OPTIONS.md)
+   * @returns A DynamicModule that NestJS can use to register the Seq Logger service globally, based on the provided configuration.
    */
   static forRoot(options: SeqLoggerModuleOptions): DynamicModule {
     return {
@@ -49,10 +69,33 @@ export class SeqLoggerModule {
   }
 
   /**
-   * Async configuration
-   * Register a globally available configuration for the seq logger service.
+   * Registers the Seq Logger service with asynchronous configuration options.
+   * This method is suitable for scenarios where configuration settings need to be resolved asynchronously, such as fetching them from a database or a remote configuration service.
+   *
    * Added by Jason.Song (成长的小猪) on 2021/10/18 15:43:38
-   * @param options Seq logger configuration async factory
+   *
+   * Example usage:
+   * ```typescript
+   * SeqLoggerModule.forRootAsync({
+   *   imports: [ConfigModule],
+   *   useFactory: async (configService: ConfigService) => ({
+   *     serverUrl: configService.get('SEQ_SERVER_URL'),
+   *     apiKey: configService.get('SEQ_API_KEY'),
+   *     extendMetaProperties: {
+   *       serviceName: configService.get('SEQ_SERVICE_NAME'),
+   *     },
+   *   }),
+   *   inject: [ConfigService],
+   * }),
+   * ```
+   *
+   * For additional properties and configuration options, refer to the Seq Logger Options Documentation:
+   * [Seq Logger Options Documentation](https://github.com/jasonsoft/nestjs-seq/blob/v2.x.x/SEQ_LOGGER_OPTIONS.md)
+   *
+   * Note: When using `forRootAsync`, ensure that any services or modules required for resolving the configuration are properly injected and imported.
+   *
+   * @param options Asynchronous configuration options for the Seq Logger service. This can include using a factory function, an existing service, or a class to provide the configuration.
+   * @returns A DynamicModule that NestJS can use to register the Seq Logger service globally, based on the asynchronously provided configuration.
    */
   static forRootAsync(options: SeqLoggerAsyncOptions): DynamicModule {
     return {
@@ -76,18 +119,15 @@ export class SeqLoggerModule {
   }
 
   private static createSeqLogger(options: SeqLoggerModuleOptions) {
-    console.info(
-      `\x1b[33m[jasonsoft/nestjs-seq]\x1b[39m - \x1b[37m${getTimestamp()}\x1b[39m \x1b[32mLOG\x1b[39m \x1b[33m[SeqLogger]\x1b[39m \x1b[32mSeq Logger is initializing...\x1b[39m`,
-    );
+    logToConsole('log', 'Seq logger is initializing...');
     const seqLogger = new SeqLoggerCore(options);
     seqLogger.emit({
       Timestamp: new Date(),
       Level: SeqLevel.Information,
-      MessageTemplate: `[{context}] Seq Logger is initializing...`,
+      MessageTemplate: `[{context}] Seq logger is initializing...`,
       Properties: {
-        serviceName: options.serviceName,
         context: 'jasonsoft/nestjs-seq',
-        SeqInitEvent: true,
+        [seqLogger.options.metaFieldName]: seqLogger.metaProperties,
       },
     });
     return seqLogger;
