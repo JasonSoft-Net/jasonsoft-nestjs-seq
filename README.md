@@ -181,7 +181,7 @@ export class AppController {
 
 > Seq is a powerful centralized logging system. Explore the logs we have gathered:
 
-![Log Visualization](seq_2024.2.11282.jpg)
+![Log Visualization](img/seq_2024.2.11282.jpg)
 
 ## Nest System Console Logging to Seq
 
@@ -220,7 +220,7 @@ This setup allows your NestJS application to log directly to Seq, providing a ce
 
 > Seq Interface Overview showing the integration of Nest System Console Logging with Seq.
 
-![Seq Interface Overview](console_seq_2024.2.11282.jpg)
+![Seq Interface Overview](img/console_seq_2024.2.11282.jpg)
 
 ## Example Repository
 
