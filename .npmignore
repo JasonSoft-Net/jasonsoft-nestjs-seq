@@ -18,4 +18,4 @@ renovate.json
 # ci
 .circleci
 
-rendering.jpg
+img/
